@@ -18,3 +18,11 @@
 
 - 数据存在各自浏览器的本地存储中，换设备或清理浏览器数据不会自动同步
 - 源文件为 index.html，修改后重新提交即可自动更新页面
+## 本地开发
+
+```bash
+git clone https://github.com/nishicouqie/ebbinghaus-vocab.git
+cd ebbinghaus-vocab
+# 修改 index.html 后：
+git add -A && git commit -m "说明" && git push
+```
