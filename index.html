@@ -72,6 +72,7 @@
   .ans-mean{font-size:19px;font-weight:700;margin:8px 0}
   .sent{background:#f8fafc;border-left:3px solid #cbd5e1;border-radius:0 10px 10px 0;padding:9px 12px;margin:8px 0;font-size:14px;text-align:left}
   .sent-cn{color:var(--muted);font-size:13px;margin:-3px 0 8px 15px;text-align:left}
+  .sent-idx{font-size:10.5px;color:#94a3b8;font-weight:700;margin:10px 0 -4px 2px;letter-spacing:1px}
   .note-tag{display:inline-block;background:var(--amber-soft);color:var(--amber);font-size:12.5px;border-radius:9px;padding:3px 10px;margin-top:4px}
   .graded-banner{border-radius:12px;padding:8px 13px;font-weight:700;font-size:15px;margin:10px 0 4px;text-align:left;display:flex;align-items:center;gap:8px}
   .gb-good{background:var(--green-soft);color:var(--green);border:1px solid #bbf7d0}
@@ -208,10 +209,18 @@
       <input id="f-pho" class="inp" placeholder="/əˈbændən/（选填）">
       <label class="fld">释义 *（建议带词性，默写题面全靠它）</label>
       <input id="f-mean" class="inp" placeholder="v. 放弃；抛弃">
-      <label class="fld">例句</label>
-      <textarea id="f-sent" class="inp" placeholder="They abandoned the plan at the last minute."></textarea>
-      <label class="fld">例句翻译</label>
-      <input id="f-sentcn" class="inp" placeholder="他们在最后一刻放弃了计划。">
+      <label class="fld">例句 · 一词多义可加多个（选填，最多 3 个）</label>
+      <input id="f-sent-1" class="inp" placeholder="例句 1 · 英文，如 They abandoned the plan at the last minute.">
+      <input id="f-sentcn-1" class="inp" placeholder="例句 1 · 中文翻译（选填）" style="margin-top:6px">
+      <div id="sent-row-2" style="display:none">
+        <input id="f-sent-2" class="inp" placeholder="例句 2 · 英文" style="margin-top:12px">
+        <input id="f-sentcn-2" class="inp" placeholder="例句 2 · 中文翻译（选填）" style="margin-top:6px">
+      </div>
+      <div id="sent-row-3" style="display:none">
+        <input id="f-sent-3" class="inp" placeholder="例句 3 · 英文" style="margin-top:12px">
+        <input id="f-sentcn-3" class="inp" placeholder="例句 3 · 中文翻译（选填）" style="margin-top:6px">
+      </div>
+      <button class="btn plain small" id="btn-add-sent" data-act="add-sent-row" style="margin-top:10px">＋ 再加一个例句</button>
       <label class="fld">记忆笔记（易错点、联想…）</label>
       <input id="f-note" class="inp" placeholder="选填">
       <div style="margin-top:16px"><button class="btn block" data-act="submit-one">保存这张卡（先进待学池排队）</button></div>
@@ -220,8 +229,8 @@
 
     <h2 class="sec">📋 批量导入（攒了一批？一口气粘进来）</h2>
     <div class="panel pad">
-      <p class="hint">一行一张卡，用竖线 <code class="kbd">|</code> 分隔。字段依次是：<br><b>单词 | 类型 | 音标 | 释义 | 例句 | 例句翻译 | 笔记</b>（后三栏可省略）<br>类型只填一个字：<code class="kbd">认</code> 或 <code class="kbd">默</code></p>
-      <pre style="background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:10px 0;overflow:auto;font-size:12px;line-height:1.9;color:var(--muted)">abandon|默|/əˈbændən/|v. 放弃|They abandoned the plan.|他们放弃了计划。
+      <p class="hint">一行一张卡，用竖线 <code class="kbd">|</code> 分隔。字段依次是：<br><b>单词 | 类型 | 音标 | 释义 | 例句 | 例句翻译 | 笔记</b>（后三栏可省略）<br>类型只填一个字：<code class="kbd">认</code> 或 <code class="kbd">默</code>；一词多义配多个例句时，例句栏和翻译栏各自用 <code class="kbd">@@</code> 隔开，一一对应（最多 3 组）</p>
+      <pre style="background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:10px 0;overflow:auto;font-size:12px;line-height:1.9;color:var(--muted)">abandon|默|/əˈbændən/|v. 放弃；抛弃|They abandoned the plan at the last minute.@@The crew was forced to abandon the sinking ship.|他们在最后一刻放弃了计划。@@船员们被迫弃船逃生。
 adapt|认||v. 适应；改编|She adapted quickly to campus life.|她很快适应了校园生活。</pre>
       <textarea id="bulk-text" class="inp" style="min-height:130px" placeholder="在这里粘贴，然后点「先预览解析」检查一遍 →"></textarea>
       <div style="margin-top:12px;display:flex;gap:8px">
@@ -247,6 +256,7 @@ adapt|认||v. 适应；改编|She adapted quickly to campus life.|她很快适�
    规则：间隔 1·2·4·7·15 天，可选第 30 天终极抽查；
         忘词倒退一级；「模糊」不推进但明天再来；
         认识卡自评三键；默写卡键盘输入自动判卷。
+   卡片支持多个例句（sents 数组，最多 3 组），一词多义时每义一句。
    ================================================================= */
 
 var GAPS=[1,2,4,7,15,30];   // 完成 stage s 后隔 GAPS[s] 天进行下一轮；GAPS[5]=30 为终检
@@ -272,13 +282,25 @@ var PRAISE=["今日任务清零！大脑已经开始悄悄巩固它们 🧠✨",
 function normCard(c){
   c=c||{};
   var st=(typeof c.stage==="number"&&!isNaN(c.stage))?clamp(Math.floor(c.stage),0,6):(c.status==="pool"?null:0);
+  var sents=[];
+  if(Array.isArray(c.sents)){
+    sents=c.sents.map(function(s){
+      s=s||{};
+      return {en:String(s.en||"").trim(),cn:String(s.cn||"").trim()};
+    }).filter(function(s){return s.en;});
+  }else if(c.sentence){
+    /* 旧版单例句字段自动迁移 */
+    sents=[{en:String(c.sentence).trim(),cn:String(c.sentenceCn||"").trim()}];
+  }
+  sents=sents.slice(0,3);
   return {
     id:c.id||uid(),
     word:String(c.word||"").trim(),
     phonetic:c.phonetic||"",
     meaning:c.meaning||"",
-    sentence:c.sentence||"",
-    sentenceCn:c.sentenceCn||"",
+    sents:sents,
+    sentence:sents[0]?sents[0].en:"",
+    sentenceCn:sents[0]?sents[0].cn:"",
     note:c.note||"",
     type:c.type==="spell"?"spell":"recog",
     status:c.status==="pool"?"pool":"active",
@@ -504,8 +526,7 @@ function renderToday(){
       (c.phonetic?'<div class="pho">'+esc(c.phonetic)+"</div>":"")+
       '<div class="ans-block" style="margin-top:14px">'+
         '<div class="ans-mean">'+esc(c.meaning)+"</div>"+
-        (c.sentence?'<div class="sent">'+esc(c.sentence)+"</div>":"")+
-        (c.sentenceCn?'<div class="sent-cn">'+esc(c.sentenceCn)+"</div>":"")+
+        sentsHTML(c.sents)+
         (c.note?'<span class="note-tag">📌 '+esc(c.note)+"</span>":"")+
       "</div>"+
       '<button class="btn block" style="margin-top:16px" data-act="learn-nw">记住了，明天开始考我 →</button>'+
@@ -513,6 +534,17 @@ function renderToday(){
   }
 
   el.innerHTML=html;
+}
+
+/* ---- 例句组渲染（多例句时带「例 N」编号） ---- */
+function sentsHTML(list){
+  list=list||[];
+  var multi=list.length>1;
+  return list.map(function(s,i){
+    return (multi?'<div class="sent-idx">例 '+(i+1)+"</div>":"")+
+      '<div class="sent">'+esc(s.en)+"</div>"+
+      (s.cn?'<div class="sent-cn">'+esc(s.cn)+"</div>":"");
+  }).join("");
 }
 
 /* ---- 认识卡 ---- */
@@ -531,8 +563,7 @@ function recogFull(c){
     h+='<div class="ans-block" style="margin-top:16px">';
     h+='<div class="ans-mean" style="text-align:center;font-size:24px">'+esc(c.meaning)+"</div>";
     if(c.phonetic)h+='<div class="pho" style="text-align:left">'+esc(c.phonetic)+"</div>";
-    if(c.sentence)h+='<div class="sent">'+esc(c.sentence)+"</div>";
-    if(c.sentenceCn)h+='<div class="sent-cn">'+esc(c.sentenceCn)+"</div>";
+    h+=sentsHTML(c.sents);
     if(c.note)h+='<span class="note-tag">📌 '+esc(c.note)+"</span>";
     h+="</div>";
   }
@@ -588,8 +619,7 @@ function backDetails(c){
   var h='<div class="ans-block" style="margin-top:8px">';
   h+='<div class="ans-mean">'+esc(c.meaning)+"</div>";
   if(c.phonetic)h+='<div class="pho" style="text-align:left">'+esc(c.phonetic)+"</div>";
-  if(c.sentence)h+='<div class="sent">'+esc(c.sentence)+"</div>";
-  if(c.sentenceCn)h+='<div class="sent-cn">'+esc(c.sentenceCn)+"</div>";
+  h+=sentsHTML(c.sents);
   if(c.note)h+='<span class="note-tag">📌 '+esc(c.note)+"</span>";
   return h+"</div>";
 }
@@ -730,6 +760,12 @@ function closeModal(){$("overlay").classList.remove("show");}
 function editOpen(id){
   var c=S.cards.find(function(x){return x.id===id;});
   if(!c)return;
+  var sentHTML="";
+  for(var i=1;i<=3;i++){
+    var s=(c.sents&&c.sents[i-1])||{en:"",cn:""};
+    sentHTML+='<input id="e-sent-'+i+'" class="inp" placeholder="例句 '+i+' · 英文（选填）" value="'+esc(s.en)+'" style="margin-top:'+(i>1?"12px":"0")+'">'+
+              '<input id="e-sentcn-'+i+'" class="inp" placeholder="例句 '+i+' · 中文翻译（选填）" value="'+esc(s.cn)+'" style="margin-top:6px">';
+  }
   var html='<div class="modal-head"><h3>✏️ 编辑卡片</h3><button class="icon-btn" data-act="close-modal" style="font-size:18px">✕</button></div>'+
     '<label class="fld">卡片类型</label><div class="radio-pill" id="edit-type">'+
     '<label class="'+(c.type==="recog"?"sel":"")+'"><input type="radio" name="etype" value="recog"'+(c.type==="recog"?" checked":"")+'>👀 认识卡</label>'+
@@ -738,8 +774,7 @@ function editOpen(id){
     '<label class="fld">单词 *</label><input id="e-word" class="inp" value="'+esc(c.word)+'">'+
     '<label class="fld">音标</label><input id="e-pho" class="inp" value="'+esc(c.phonetic)+'">'+
     '<label class="fld">释义 *</label><input id="e-mean" class="inp" value="'+esc(c.meaning)+'">'+
-    '<label class="fld">例句</label><textarea id="e-sent" class="inp">'+esc(c.sentence)+"</textarea>"+
-    '<label class="fld">例句翻译</label><input id="e-sentcn" class="inp" value="'+esc(c.sentenceCn)+'">'+
+    '<label class="fld">例句（一词多义可写多个，最多 3 个）</label>'+sentHTML+
     '<label class="fld">笔记</label><input id="e-note" class="inp" value="'+esc(c.note)+'">'+
     '<div style="display:flex;gap:8px;margin-top:18px">'+
     '<button class="btn block" data-act="save-edit" data-id="'+c.id+'">保存修改</button>'+
@@ -756,11 +791,18 @@ function saveEdit(id){
   if(findDup(w,id)){fb.innerHTML='<div class="summary-box" style="background:var(--amber-soft);border-color:#fde68a;color:#92400e">词库里已经有这个单词了！（改哪张卡自己去词库看看）</div>';return;}
   c.type=document.querySelector('input[name="etype"]:checked').value;
   c.word=w;c.phonetic=$("e-pho").value.trim();c.meaning=m;
-  c.sentence=$("e-sent").value.trim();c.sentenceCn=$("e-sentcn").value.trim();c.note=$("e-note").value.trim();
+  var sents=collectSents("e");
+  c.sents=sents;
+  c.sentence=sents[0]?sents[0].en:"";
+  c.sentenceCn=sents[0]?sents[0].cn:"";
+  c.note=$("e-note").value.trim();
   save();closeModal();render();toast("已保存 ✅");
 }
 
 /* ---------- 批量导入 ---------- */
+function parseSentCol(col){
+  return String(col||"").split("@@").map(function(x){return x.trim();}).filter(Boolean);
+}
 function parseBulkLines(txt){
   return txt.split(/\r?\n/).map(function(rawLine,i){
     var line=rawLine.trim();
@@ -772,8 +814,14 @@ function parseBulkLines(txt){
     if(!type)return {err:"第 "+(i+1)+" 行：「"+f[0]+"」的类型看不懂（只能填 认 或 默）"};
     var meaning=f[3]||"";
     if(!meaning)return {err:"第 "+(i+1)+" 行：「"+f[0]+"」缺释义（第四栏）"};
+    var ens=parseSentCol(f[4]);
+    var cns=parseSentCol(f[5]);
+    var warn=null;
+    if(cns.length&&!ens.length)warn="有翻译但没有例句";
+    else if(cns.length&&cns.length!==ens.length)warn="例句 "+ens.length+" 句但翻译 "+cns.length+" 条——检查 @@ 是否一一对应";
     return {card:{word:f[0],type:type,phonetic:f[2]||"",meaning:meaning,
-                  sentence:f[4]||"",sentenceCn:f[5]||"",note:f[6]||""},n:i+1};
+                  sents:ens.map(function(en,j){return {en:en,cn:cns[j]||""};}),
+                  note:f[6]||""},n:i+1,warn:warn};
   }).filter(Boolean);
 }
 var lastParsed=[];
@@ -787,15 +835,19 @@ function reportBulk(items,previewOnly){
   if(!items.length){el.innerHTML='<div class="summary-box" style="background:var(--amber-soft);border-color:#fde68a;color:#92400e">没有解析出任何有效的行——检查一下格式？</div>';return;}
   var bads=items.filter(function(x){return !!x.err;});
   var goods=items.filter(function(x){return !!x.card;});
+  var warns=goods.filter(function(x){return x.warn;});
   var h="";
   if(bads.length)h+='<div class="summary-box" style="background:var(--red-soft);border-color:#fecaca;color:var(--red)"><b>有 '+bads.length+" 行有问题：</b><br>"+bads.map(function(x){return "· "+esc(x.err);}).join("<br>")+"</div>";
   var show=goods.slice(0,previewOnly?6:goods.length);
   h+='<div class="parse-preview">'+show.map(function(x){
     var c=x.card;
-    return '<div class="prow ok"><span>'+(c.type==="spell"?"⌨️":"👀")+"</span><b>"+esc(c.word)+"</b><span style='color:var(--muted)'>"+esc(c.meaning)+"</span></div>";
+    return '<div class="prow ok"><span>'+(c.type==="spell"?"⌨️":"👀")+"</span><b>"+esc(c.word)+"</b><span style='color:var(--muted)'>"+esc(c.meaning)+(c.sents&&c.sents.length>1?" · "+c.sents.length+" 个例句":"")+"</span>"+(x.warn?"<span style='color:var(--amber)'>⚠ "+esc(x.warn)+"</span>":"")+"</div>";
   }).join("")+(previewOnly&&goods.length>6?'<div class="prow ok">… 以及另外 '+(goods.length-6)+" 行 ✔</div>":"")+"</div>";
   if(!previewOnly){
-    h='<div class="summary-box"><b>🎉 导入成功：'+result.count+" 张进池 · 跳过重复 "+result.dup+" 张</b>"+(bads.length?"<br>"+bads.map(function(x){return "· "+esc(x.err);}).join("<br>"):"")+"</div>";
+    h='<div class="summary-box"><b>🎉 导入成功：'+result.count+" 张进池 · 跳过重复 "+result.dup+" 张</b>"+
+      (bads.length?"<br><b>"+bads.length+" 行格式有误，未能导入：</b><br>"+bads.map(function(x){return "· "+esc(x.err);}).join("<br>"):"")+
+      (warns.length?"<br><b style='color:#92400e'>⚠ 有 "+warns.length+" 行例句和翻译数量对不上（已按顺序配对），建议检查：</b><br>"+warns.slice(0,5).map(function(x){return "· "+esc(x.card.word)+"："+esc(x.warn);}).join("<br>"):"")+
+      "</div>";
   }
   el.innerHTML=h;
 }
@@ -814,7 +866,6 @@ function importBulk(){
   save();
   if(result.count>0)$("bulk-text").value="";
   lastParsed=[];
-  reportBulk([],false);
   reportBulk(items,false);
   renderChips();
   CUR="today";
@@ -823,6 +874,18 @@ function importBulk(){
 }
 
 /* ---------- 手动添加 ---------- */
+function collectSents(prefix){
+  var out=[];
+  for(var i=1;i<=3;i++){
+    var en=$(prefix+"-sent-"+i);
+    if(!en)continue;
+    var cn=$(prefix+"-sentcn-"+i);
+    en=en.value.trim();
+    cn=cn?cn.value.trim():"";
+    if(en)out.push({en:en,cn:cn});
+  }
+  return out;
+}
 function submitOne(){
   var word=$("f-word").value.trim(),mean=$("f-mean").value.trim();
   var fb=$("add-feedback");
@@ -839,14 +902,20 @@ function submitOne(){
     word:word,type:type,
     phonetic:$("f-pho").value.trim(),
     meaning:mean,
-    sentence:$("f-sent").value.trim(),
-    sentenceCn:$("f-sentcn").value.trim(),
+    sents:collectSents("f"),
     note:$("f-note").value.trim(),
     status:"pool"
   }));
   save();
-  $("f-word").value="";$("f-pho").value="";$("f-mean").value="";
-  $("f-sent").value="";$("f-sentcn").value="";$("f-note").value="";
+  $("f-word").value="";$("f-pho").value="";$("f-mean").value="";$("f-note").value="";
+  for(var i=1;i<=3;i++){
+    var a=$("f-sent-"+i),b=$("f-sentcn-"+i);
+    if(a)a.value="";
+    if(b)b.value="";
+  }
+  $("sent-row-2").style.display="none";
+  $("sent-row-3").style.display="none";
+  $("btn-add-sent").style.display="";
   $("f-word").focus();
   renderChips();
   var added=S.cards.filter(function(c){return c.createdAt.slice(0,10)===todayStr();}).length;
@@ -877,7 +946,7 @@ function restoreJson(file){
         cards:d.cards.map(normCard),
         log:d.log||{}
       };
-      save();dayKey=null;render();toast("✅ 已恢复备份："+"共 "+S.cards.length+" 张卡");
+      save();dayKey=null;render();toast("✅ 已恢复备份：共 "+S.cards.length+" 张卡");
     }catch(e){toast("⚠️ 这份文件不是有效的备份包");console.warn(e);}
   };
   reader.readAsText(file);
@@ -903,6 +972,13 @@ function toast(msg){
 
 /* ================= 事件绑定 ================= */
 document.addEventListener("click",function(e){
+  var lb=e.target.closest(".radio-pill label");
+  if(lb&&lb.parentNode){
+    lb.parentNode.querySelectorAll("label").forEach(function(x){x.classList.remove("sel");});
+    lb.classList.add("sel");
+    var inp=lb.querySelector("input");
+    if(inp)inp.checked=true;
+  }
   var b=e.target.closest("[data-act]");
   if(!b)return;
   var act=b.dataset.act;
@@ -922,6 +998,12 @@ document.addEventListener("click",function(e){
   else if(act==="del-open"){
     var dc=S.cards.find(function(x){return x.id===b.dataset.id;});
     if(dc&&confirm("删除「"+dc.word+"」？它的复习计划也会一起消失。")){S.cards=S.cards.filter(function(x){return x.id!==b.dataset.id;});save();renderLib();renderChips();toast("已删除 "+dc.word);}
+  }
+  else if(act==="add-sent-row"){
+    for(var sr=2;sr<=3;sr++){
+      var row=$("sent-row-"+sr);
+      if(row&&row.style.display==="none"){row.style.display="";if(sr===3)$("btn-add-sent").style.display="none";break;}
+    }
   }
   else if(act==="close-modal"){closeModal();}
   else if(act==="export-json"){exportJson();}
@@ -970,17 +1052,6 @@ document.addEventListener("keydown",function(e){
   }
 });
 
-/* ---------- 启动 ---------- */
-/* 单选胶囊高亮：用事件委托，手动表单和编辑弹窗里的胶囊都能生效 */
-document.addEventListener("click",function(e){
-  var lb=e.target.closest(".radio-pill label");
-  if(lb&&lb.parentNode){
-    lb.parentNode.querySelectorAll("label").forEach(function(x){x.classList.remove("sel");});
-    lb.classList.add("sel");
-    var inp=lb.querySelector("input");
-    if(inp)inp.checked=true;
-  }
-});
 render();
 </script>
 </body>
