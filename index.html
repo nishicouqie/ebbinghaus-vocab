@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#4f46e5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="单词本">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>艾宾浩斯单词本</title>
 <style>
   :root{
@@ -304,6 +310,8 @@ function normCard(c){
     note:c.note||"",
     type:c.type==="spell"?"spell":"recog",
     status:c.status==="pool"?"pool":"active",
+    deleted:c.deleted===true,
+    rev:typeof c.rev==="number"?c.rev:0,
     stage:st,
     due:(st===null||st>=6)?null:(c.due||null),
     startedOn:c.startedOn||null,
@@ -377,6 +385,111 @@ function streak(){
   return n;
 }
 
+/* ---------- 云同步（GitHub Gist，私密，跨设备） ---------- */
+var SYNC_KEY="ehVocab.sync.cfg";
+var syncCfg={token:"",gistId:""};
+try{
+  var sc=localStorage.getItem(SYNC_KEY);
+  if(sc)syncCfg=Object.assign(syncCfg,JSON.parse(sc));
+}catch(e){}
+function saveSyncCfg(){try{localStorage.setItem(SYNC_KEY,JSON.stringify(syncCfg));}catch(e){}}
+var syncBusy=false;
+
+function mergeData(local,remote){
+  /* 卡片按 id 合并：双方都未删 → rev 大者胜，rev 相同按 lastAt 新者胜；
+     墓碑永远占上风（删除最终一致）；学习记录 log 按天取各项最大值 */
+  var map={};
+  (local.cards||[]).forEach(function(c){map[c.id]=c;});
+  (remote.cards||[]).forEach(function(r){
+    var l=map[r.id];
+    if(!l){map[r.id]=r;return;}
+    if(r.deleted&&!l.deleted){map[r.id]=r;return;}
+    if(l.deleted&&!r.deleted)return;
+    var lT=Date.parse(l.lastAt||"")||0;
+    var rT=Date.parse(r.lastAt||"")||0;
+    var lKey=(l.rev||0)*1e13+lT, rKey=(r.rev||0)*1e13+rT;
+    if(rKey>lKey)map[r.id]=r;
+  });
+  var mergedCards=Object.keys(map).map(function(k){return map[k];}).map(normCard);
+  var log={};
+  var allDays={};
+  Object.keys(local.log||{}).forEach(function(d){allDays[d]=1;});
+  Object.keys(remote.log||{}).forEach(function(d){allDays[d]=1;});
+  Object.keys(allDays).forEach(function(d){
+    var a=(local.log||{})[d]||{},b=(remote.log||{})[d]||{};
+    log[d]={r:Math.max(a.r||0,b.r||0),n:Math.max(a.n||0,b.n||0)};
+  });
+  var ls=(local&&local.settings)||{};
+  var rs=(remote&&remote.settings)||ls;
+  return {cards:mergedCards,log:log,
+    settings:{
+      newLimit:clamp(rs.newLimit||ls.newLimit||10,1,100),
+      finalCheck:rs.finalCheck!==undefined?rs.finalCheck:(ls.finalCheck!==undefined?ls.finalCheck:true)
+    }};
+}
+function gistBody(){
+  return {description:"ebbinghaus-vocab sync (do not edit)",
+    files:{"vocab-data.json":{content:JSON.stringify({v:1,settings:S.settings,cards:S.cards,log:S.log,syncedAt:new Date().toISOString()})}}};
+}
+function api(path,method,body){
+  return fetch("https://api.github.com"+path,{
+    method:method||"GET",
+    headers:{"Authorization":"Bearer "+syncCfg.token,
+      "Accept":"application/vnd.github+json",
+      "Content-Type":"application/json"},
+    body:body?JSON.stringify(body):undefined
+  }).then(function(r){
+    if(!r.ok)return r.json().then(function(j){
+      throw new Error("HTTP "+r.status+(j&&j.message?"："+j.message:""));
+    });
+    return r.json();
+  });
+}
+function doSync(silent){
+  if(syncBusy)return Promise.resolve();
+  if(!syncCfg.token){if(!silent)toast("请先在「数据」页配置同步令牌");return Promise.resolve();}
+  syncBusy=true;
+  if(!silent)toast("☁️ 同步中…");
+  var pull=syncCfg.gistId
+    ?api("/gists/"+syncCfg.gistId)
+    :api("/gists?per_page=100").then(function(list){
+      var hit=(list||[]).find(function(x){return x.description==="ebbinghaus-vocab sync (do not edit)";});
+      if(hit){syncCfg.gistId=hit.id;saveSyncCfg();}
+      return null;
+    });
+  return pull.then(function(gist){
+    var remote=null;
+    if(gist&&gist.files&&gist.files["vocab-data.json"]&&gist.files["vocab-data.json"].content){
+      try{remote=JSON.parse(gist.files["vocab-data.json"].content);}catch(e){}
+    }
+    var merged=remote?mergeData(S,remote):S;
+    return api("/gists"+(syncCfg.gistId?"/"+syncCfg.gistId:""),"POST",gistBody())
+      .then(function(res){
+        if(!syncCfg.gistId&&res&&res.id){syncCfg.gistId=res.id;saveSyncCfg();}
+        var pulls=0,pushes=0;
+        if(remote){
+          var rm={};remote.cards.forEach(function(c){rm[c.id]=c;});
+          merged.cards.forEach(function(c){
+            var r=rm[c.id],l=S.cards.find(function(x){return x.id===c.id;});
+            if(r&&l&&JSON.stringify(r)!==JSON.stringify(l))pulls++;
+            else if(!r)pushes++;
+          });
+        }
+        S.cards=merged.cards;S.log=merged.log;S.settings=merged.settings;
+        save();
+        renderChips();
+        if(CUR==="lib")renderLib();
+        if(CUR==="data")renderData();
+        syncBusy=false;
+        if(!silent)toast(remote?("✅ 已同步（云→本机 "+pulls+"，本机→云 "+pushes+"）"):"☁️ 已上传到云端（首次）");
+      });
+  }).catch(function(e){
+    syncBusy=false;
+    if(!silent)toast("⚠️ 同步失败："+e.message);
+    console.warn("sync error",e);
+  });
+}
+
 /* ---------- 会话运行时（不落盘，页面刷新即重算） ---------- */
 var CUR="today";
 var dayKey=null;
@@ -416,7 +529,7 @@ function resetCardView(){curRevId=null;flipped=false;spellState="typing";typedGu
 /* ---------- 评分核心 ---------- */
 function applyGrade(c,g){
   var t=todayStr();
-  c.reviews++;c.lastAt=t;
+  c.reviews++;c.lastAt=t;c.rev=(c.rev||0)+1;
   if(g==="fuzzy"){c.fuzzy++;c.due=addDaysStr(t,1);}
   else if(g==="miss"){
     c.errors++;
@@ -446,7 +559,7 @@ function learnNw(){
   var c=nwSeq.shift();
   if(!c)return;
   c.status="active";c.stage=0;c.due=addDaysStr(todayStr(),GAPS[0]);
-  c.startedOn=todayStr();
+  c.startedOn=todayStr();c.rev=(c.rev||0)+1;
   bumpLog("n");save();
   feed.unshift({i:"🌱",w:c.word});feed=feed.slice(0,10);
   render();
@@ -726,6 +839,19 @@ function renderData(){
       '<label for="set-final" style="font-size:14px;cursor:pointer">毕业前增加一次「第 30 天终极抽查」（推荐保留）</label>'+
     "</div></div>";
 
+  html+='<h2 class="sec">🔄 跨设备同步（手机 ⇄ 电脑）</h2><div class="panel pad">'+
+    (syncCfg.token
+      ?'<p class="hint">状态：<b style="color:var(--green)">已配置</b>'+(syncCfg.gistId?" · 云端就绪 ✅":" · 下次同步时自动创建云端")+'</p>'
+      :'<p class="hint">数据存在浏览器里，换设备就看不到。配置一次 GitHub 令牌（你发布网站用的那个账号），所有设备就能自动合并进度。</p>')+
+    '<label class="fld">GitHub 个人令牌（gist 权限即可）</label>'+
+    '<input id="sync-token" class="inp" type="password" placeholder="'+(syncCfg.token?"已保存（重新输入可更换）":"粘贴 ghp_… 或 github_pat_…")+'">'+
+    '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'+
+      '<button class="btn" data-act="sync-now">☁️ 立即同步</button>'+
+      (syncCfg.token?'<button class="btn plain" data-act="sync-disconnect">断开同步</button>':"")+
+    "</div>"+
+    '<p class="hint" style="margin-top:10px">令牌只存在本机浏览器，不会上传到任何服务器。电脑上 <code class="kbd">gh auth token</code> 可直接查看；或到 <a href="https://github.com/settings/tokens?type=beta" target="_blank">github.com/settings/tokens</a> 生成（勾选 Gist 权限）。</p>'+
+    "</div>";
+
   html+='<h2 class="sec">💾 数据安全</h2><div class="panel pad">'+
     '<p class="hint">所有数据都存在这台电脑的这个浏览器里。<b>换浏览器、重装系统都会丢！</b>建议每周导出一次备份放在 U 盘或网盘。</p>'+
     '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'+
@@ -796,6 +922,7 @@ function saveEdit(id){
   c.sentence=sents[0]?sents[0].en:"";
   c.sentenceCn=sents[0]?sents[0].cn:"";
   c.note=$("e-note").value.trim();
+  c.rev=(c.rev||0)+1;
   save();closeModal();render();toast("已保存 ✅");
 }
 
@@ -997,7 +1124,7 @@ document.addEventListener("click",function(e){
   else if(act==="save-edit"){saveEdit(b.dataset.id);}
   else if(act==="del-open"){
     var dc=S.cards.find(function(x){return x.id===b.dataset.id;});
-    if(dc&&confirm("删除「"+dc.word+"」？它的复习计划也会一起消失。")){S.cards=S.cards.filter(function(x){return x.id!==b.dataset.id;});save();renderLib();renderChips();toast("已删除 "+dc.word);}
+    if(dc&&confirm("删除「"+dc.word+"」？它的复习计划也会一起消失（同步后其他设备也会删掉它）。")){dc.deleted=true;dc.status="pool";dc.due=null;dc.rev=(dc.rev||0)+1;save();renderLib();renderChips();toast("已删除 "+dc.word);}
   }
   else if(act==="add-sent-row"){
     for(var sr=2;sr<=3;sr++){
@@ -1009,6 +1136,14 @@ document.addEventListener("click",function(e){
   else if(act==="export-json"){exportJson();}
   else if(act==="restore-click"){$("restore-file").click();}
   else if(act==="clear-all"){clearAll();}
+  else if(act==="sync-now"){
+    var tk=$("sync-token").value.trim();
+    if(tk){syncCfg.token=tk;saveSyncCfg();}
+    doSync(false).then(function(){if(CUR==="data")renderData();});
+  }
+  else if(act==="sync-disconnect"){
+    if(confirm("断开后各设备将不再同步（本地数据不受影响）。确定？")){syncCfg={token:"",gistId:""};saveSyncCfg();renderData();toast("已断开同步");}
+  }
 });
 $("overlay").addEventListener("click",function(e){if(e.target===this)closeModal();});
 
@@ -1053,6 +1188,14 @@ document.addEventListener("keydown",function(e){
 });
 
 render();
+/* 打开页面自动同步：有配置就后台拉取合并，失败不打扰 */
+if(syncCfg.token)doSync(true);
+/* 之后每 10 分钟静默同步一次 */
+setInterval(function(){if(syncCfg.token&&!syncBusy)doSync(true);},10*60*1000);
+/* PWA：注册 Service Worker（离线可用 + 可安装） */
+if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0){
+  navigator.serviceWorker.register("sw.js").catch(function(e){console.warn("SW 注册失败",e);});
+}
 </script>
 </body>
 </html>
