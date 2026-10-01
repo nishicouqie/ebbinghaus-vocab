@@ -199,10 +199,11 @@
   .rail .feed{justify-content:flex-start;margin-top:0}
   @media (min-width:1200px){
     .wrap{max-width:1300px;display:grid;grid-template-columns:250px minmax(0,780px) 250px;column-gap:26px;align-items:start}
-    .main-col{grid-column:2;min-width:0}
-    .rail{display:block;position:sticky;top:70px;max-height:calc(100vh - 90px);overflow:auto}
-    .rail-left{grid-column:1}
-    .rail-right{grid-column:3}
+    /* grid-row 必须显式写死：否则自动放置游标从 col2 回到 col1 时会掉到第 2 行 */
+    .main-col{grid-column:2;grid-row:1;min-width:0}
+    .rail{display:block;position:sticky;top:16px;max-height:calc(100vh - 40px);overflow:auto}
+    .rail-left{grid-column:1;grid-row:1}
+    .rail-right{grid-column:3;grid-row:1}
     .wide-hide{display:none!important}
   }
 
