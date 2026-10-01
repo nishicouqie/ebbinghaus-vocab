@@ -188,22 +188,24 @@
   .bk-miss{border-color:#fecaca;color:var(--red);background:var(--red-soft)}
   .bk-fuzzy{border-color:#fde68a;color:var(--amber);background:var(--amber-soft)}
 
-  /* 桌面宽屏三栏：左右侧栏利用空白 */
+  /* 桌面宽屏侧栏：无卡片框，融入背景只留分割线，固定悬挂不随滚动 */
   .rail{display:none}
-  .rail .panel{margin-bottom:14px}
-  .rail-title{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:1px;margin-bottom:10px}
-  .rail-stat{display:flex;align-items:baseline;gap:8px;padding:6px 0;border-bottom:1px dashed #eef1f6}
+  .rail-title{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:1px;margin-bottom:8px}
+  .rail-stat{display:flex;align-items:baseline;gap:8px;padding:7px 0;border-bottom:1px solid #e8ebf3}
   .rail-stat:last-child{border-bottom:none}
   .rail-stat b{font-size:19px;color:var(--primary);min-width:36px}
   .rail-stat span{font-size:12.5px;color:var(--muted)}
   .rail .feed{justify-content:flex-start;margin-top:0}
+  .rail-sec+.rail-sec{border-top:1px solid #e8ebf3;margin-top:14px;padding-top:14px}
+  .rail-hint{font-size:12px;color:var(--muted);line-height:1.8}
   @media (min-width:1200px){
     .wrap{max-width:1300px;display:grid;grid-template-columns:250px minmax(0,780px) 250px;column-gap:26px;align-items:start}
     /* grid-row 必须显式写死：否则自动放置游标从 col2 回到 col1 时会掉到第 2 行 */
     .main-col{grid-column:2;grid-row:1;min-width:0}
-    .rail{display:block;position:sticky;top:16px;max-height:calc(100vh - 40px);overflow:auto}
-    .rail-left{grid-column:1;grid-row:1}
-    .rail-right{grid-column:3;grid-row:1}
+    /* 侧栏用 fixed 悬挂：与标签栏顶部对齐（90px），滚动时保持不动 */
+    .rail{display:block;position:fixed;top:90px;width:250px;max-height:calc(100vh - 110px);overflow-y:auto}
+    .rail-left{left:max(16px,calc(50% - 650px))}
+    .rail-right{right:max(16px,calc(50% - 650px))}
     .wide-hide{display:none!important}
   }
 
@@ -1027,7 +1029,7 @@ function renderData(){
 function renderRails(){
   var t=todayStr(),lg=S.log[t]||{};
   var gradN=S.cards.filter(function(c){return statusOf(c)==="grad";}).length;
-  var left='<div class="panel" style="padding:14px 16px"><div class="rail-title">📊 概览</div>'+
+  var left='<div class="rail-sec"><div class="rail-title">📊 概览</div>'+
     '<div class="rail-stat"><b>'+streak()+"</b><span>连续打卡（天）</span></div>"+
     '<div class="rail-stat"><b>'+(lg.r||0)+"</b><span>今日已复习</span></div>"+
     '<div class="rail-stat"><b>'+(lg.n||0)+"</b><span>今日新词</span></div>"+
@@ -1037,7 +1039,7 @@ function renderRails(){
     '<div class="rail-stat"><b>'+S.cards.length+"</b><span>词库总数</span></div>"+
     "</div>";
   if(lg.miss||lg.fuzzy){
-    left+='<div class="panel" style="padding:12px 16px"><div class="rail-title">📓 今日错题</div>'+
+    left+='<div class="rail-sec"><div class="rail-title">📓 今日错题</div>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
       '<span class="bk-day-cnt" style="background:var(--red-soft);color:var(--red)">不认识 '+(lg.miss||0)+"</span>"+
       '<span class="bk-day-cnt" style="background:var(--amber-soft);color:var(--amber)">模糊 '+(lg.fuzzy||0)+"</span></div>"+
@@ -1045,25 +1047,25 @@ function renderRails(){
   }
   var right="";
   if(CUR==="today"){
-    right='<div class="panel" style="padding:14px 16px"><div class="rail-title">🕒 最近动态</div><div class="feed">'+
-      (feed.length?feed.map(function(f){return "<span>"+f.i+" "+esc(f.w)+"</span>";}).join(""):'<span class="hint" style="font-size:12px">还没开始，背一张试试</span>')+"</div></div>";
+    right='<div class="rail-sec"><div class="rail-title">🕒 最近动态</div><div class="feed">'+
+      (feed.length?feed.map(function(f){return "<span>"+f.i+" "+esc(f.w)+"</span>";}).join(""):'<span class="rail-hint">还没开始，背一张试试</span>')+"</div></div>";
   }else if(CUR==="book"){
-    right='<div class="panel" style="padding:14px 16px"><div class="rail-title">📓 做题本</div>'+
-      '<p class="hint" style="font-size:12px">背错（不认识）和模糊的词会自动按天收进这里。点单词看释义，可以让它在明天再考你一次。记录自 v3 起。</p></div>';
+    right='<div class="rail-sec"><div class="rail-title">📓 做题本</div>'+
+      '<p class="rail-hint">背错（不认识）和模糊的词会自动按天收进这里。点单词看释义，可以让它在明天再考你一次。记录自 v3 起。</p></div>';
   }else if(CUR==="data"){
-    right='<h2 class="sec" style="margin-top:0">📜 排程规则速查</h2><div class="panel pad" style="font-size:13px;line-height:2">'+
-      "🧠 节奏：初学 → 隔 <b>1</b> 天考第 1 轮 → 隔 <b>2</b> 天第 2 轮 → 隔 <b>4</b> 天第 3 轮 → 隔 <b>7</b> 天第 4 轮 → 隔 <b>15</b> 天第 5 轮 → 毕业"+
+    right='<div class="rail-sec"><div class="rail-title">📜 排程规则速查</div><p class="rail-hint">'+
+      "🧠 初学 → 隔 <b>1</b> 天第 1 轮 → 隔 <b>2</b> 天第 2 轮 → 隔 <b>4</b> 天第 3 轮 → 隔 <b>7</b> 天第 4 轮 → 隔 <b>15</b> 天第 5 轮 → 毕业"+
       (S.settings.finalCheck?" → 隔 <b>30</b> 天终极抽查 🎓":"")+"<br>"+
-      "😅 <b>模糊</b>：不算错也不推进，明天同一张卡再来。<br>"+
-      "😵 <b>不认识</b>：倒退一级，改回上一档节奏接着走。<br>"+
+      "😅 <b>模糊</b>：不算错也不推进，明天再来。<br>"+
+      "😵 <b>不认识</b>：倒退一级。<br>"+
       "⌨️ 默写卡敲对自动过关；敲错自选「差一点/真不会」。<br>"+
-      "💤 偷懒没背不扣分，全部顺延堆积，软件会提醒。</div>";
+      "💤 偷懒没背不扣分，全部顺延堆积。</p></div>";
   }else if(CUR==="add"){
-    right='<div class="panel" style="padding:14px 16px"><div class="rail-title">📋 导入格式速记</div>'+
-      '<p class="hint" style="font-size:12px;line-height:1.9">单词 | 认/默 | 音标 | 释义 | 例句 | 例句翻译 | 笔记<br>多例句用 <code class="kbd">@@</code> 隔开（最多 3 组）<br>重复词会弹出对比，自己选覆盖/跳过</p></div>';
+    right='<div class="rail-sec"><div class="rail-title">📋 导入格式速记</div>'+
+      '<p class="rail-hint">单词 | 认/默 | 音标 | 释义 | 例句 | 例句翻译 | 笔记<br>多例句用 <code class="kbd">@@</code> 隔开（最多 3 组）<br>重复词会弹出对比，自己选覆盖/跳过</p></div>';
   }else if(CUR==="lib"){
-    right='<div class="panel" style="padding:14px 16px"><div class="rail-title">🔍 小提示</div>'+
-      '<p class="hint" style="font-size:12px">圆点进度：5 轮复习 + 第 30 天终检，点亮几颗就是走到第几轮，绿色代表已毕业。</p></div>';
+    right='<div class="rail-sec"><div class="rail-title">🔍 小提示</div>'+
+      '<p class="rail-hint">圆点进度：5 轮复习 + 第 30 天终检，点亮几颗就是走到第几轮，绿色代表已毕业。</p></div>';
   }
   $("rail-left").innerHTML=left;
   $("rail-right").innerHTML=right;
