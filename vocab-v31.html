@@ -265,6 +265,7 @@
         <option value="learning">学习中</option>
         <option value="final">终检中</option>
         <option value="grad">已毕业</option>
+        <option value="deleted">🗑️ 已删除（回收站）</option>
       </select>
       <select id="lib-type" class="inp">
         <option value="all">全部类型</option>
@@ -424,12 +425,13 @@ var S=load();
 
 /* ---------- 派生信息 ---------- */
 function statusOf(c){
+  if(c.deleted)return "deleted";
   if(c.status==="pool")return "pool";
   if((c.stage||0)>=6)return "grad";
   if((c.stage||0)===5)return "final";
   return "learning";
 }
-var STATUS_TXT={pool:"待学",learning:"学习中",final:"终检中",grad:"已毕业"};
+var STATUS_TXT={pool:"待学",learning:"学习中",final:"终检中",grad:"已毕业",deleted:"已删除"};
 var STATUS_CLS={pool:"mb-pool",learning:"mb-learn",final:"mb-final",grad:"mb-grad"};
 function roundLabel(c){
   if(statusOf(c)==="pool")return "排队等开课";
@@ -447,7 +449,7 @@ function dueTxt(c){
 }
 function findDup(word,exceptId){
   var w=String(word).trim().toLowerCase();
-  return S.cards.find(function(c){return c.id!==exceptId&&c.word.trim().toLowerCase()===w;});
+  return S.cards.find(function(c){return c.id!==exceptId&&!c.deleted&&c.word.trim().toLowerCase()===w;});
 }
 function bumpLog(kind){
   var t=todayStr();
@@ -646,7 +648,7 @@ function ensureSessions(){
   if(!nwDone&&nwSeq.length===0){
     var quota=Math.max(0,S.settings.newLimit-learnedTodayCount());
     if(quota>0){
-      nwSeq=S.cards.filter(function(c){return c.status==="pool";})
+      nwSeq=S.cards.filter(function(c){return c.status==="pool"&&!c.deleted;})
         .sort(function(a,b){return a.createdAt<b.createdAt?-1:1;})
         .slice(0,quota);
     }
@@ -752,11 +754,12 @@ function focusSpell(){
   },30);
 }
 function renderChips(){
-  var g=S.cards.filter(function(c){return statusOf(c)==="grad";}).length;
+  var live=S.cards.filter(function(c){return !c.deleted;});
+  var g=live.filter(function(c){return statusOf(c)==="grad";}).length;
   $("top-chips").innerHTML=
     '<span class="chip-stat">🔥 连续打卡 <b>'+streak()+"</b> 天</span>"+
     '<span class="chip-stat">🎓 已毕业 <b>'+g+"</b> 词</span>"+
-    '<span class="chip-stat">📚 词库 <b>'+S.cards.length+"</b> 词</span>";
+    '<span class="chip-stat">📚 词库 <b>'+live.length+"</b> 词</span>";
 }
 
 /* ---------- 今日页 ---------- */
@@ -935,7 +938,8 @@ function renderLib(){
   $("lib-status").value=libStatus;
   $("lib-type").value=libType;
   var list=S.cards.filter(function(c){
-    if(libStatus!=="all"&&statusOf(c)!==libStatus)return false;
+    if(libStatus==="all"){ if(c.deleted)return false; }   /* 全部状态：不显示回收站 */
+    else if(statusOf(c)!==libStatus)return false;
     if(libType!=="all"&&c.type!==libType)return false;
     if(libQ){
       var q=libQ.toLowerCase();
@@ -943,7 +947,7 @@ function renderLib(){
     }
     return true;
   }).sort(function(a,b){
-    var ord={pool:0,learning:1,final:2,grad:3};
+    var ord={pool:0,learning:1,final:2,grad:3,deleted:4};
     if(ord[statusOf(a)]!==ord[statusOf(b)])return ord[statusOf(a)]-ord[statusOf(b)];
     return a.createdAt<b.createdAt?1:-1;   /* 新的在前 */
   });
@@ -965,21 +969,30 @@ function renderLib(){
 function vrowHTML(c){
   var st=statusOf(c);
   var dots="";
-  for(var i=0;i<6;i++){
-    var cls="dot";
-    if(st==="grad")cls+=" gd";
-    else if(i<c.stage)cls+=" on";
-    dots+='<span class="'+cls+'">●</span>';
+  if(st!=="deleted"){
+    for(var i=0;i<6;i++){
+      var cls="dot";
+      if(st==="grad")cls+=" gd";
+      else if(i<c.stage)cls+=" on";
+      dots+='<span class="'+cls+'">●</span>';
+    }
   }
-  return '<div class="vrow">'+
+  var btns="";
+  if(st==="deleted"){
+    btns='<button class="icon-btn" data-act="restore-card" data-id="'+c.id+'" title="恢复">♻️</button>'+
+         '<button class="icon-btn" data-act="del-forever" data-id="'+c.id+'" title="彻底删除">❌</button>';
+  }else{
+    btns='<button class="icon-btn" data-act="edit-open" data-id="'+c.id+'" title="编辑">✏️</button>'+
+         '<button class="icon-btn" data-act="del-open" data-id="'+c.id+'" title="删除">🗑️</button>';
+  }
+  return '<div class="vrow"'+(st==="deleted"?' style="opacity:.5"':"")+'>'+
     '<span class="vword">'+esc(c.word)+"</span>"+
     '<span class="mini-badge '+(c.type==="spell"?"mb-spell":"mb-recog")+'">'+(c.type==="spell"?"⌨️ 默":"👀 认")+"</span>"+
     '<span class="mini-badge '+STATUS_CLS[st]+'">'+STATUS_TXT[st]+"</span>"+
-    '<span class="dots" title="进度：5轮+终检">'+dots+"</span>"+
+    (dots?'<span class="dots" title="进度：5轮+终检">'+dots+"</span>":"")+
     '<span class="vmean">'+esc(c.meaning)+(c.errors?' · ⚠️错'+c.errors+"次":"")+"</span>"+
     '<span class="due-txt">'+dueTxt(c)+"</span>"+
-    '<button class="icon-btn" data-act="edit-open" data-id="'+c.id+'" title="编辑">✏️</button>'+
-    '<button class="icon-btn" data-act="del-open" data-id="'+c.id+'" title="删除">🗑️</button>'+
+    btns+
     "</div>";
 }
 
@@ -987,9 +1000,9 @@ function vrowHTML(c){
 function renderData(){
   var t=todayStr();
   var log=S.log[t]||{r:0,n:0};
-  var cnt={pool:0,learning:0,final:0,grad:0};
+  var cnt={pool:0,learning:0,final:0,grad:0,deleted:0};
   var totalReviews=0;
-  S.cards.forEach(function(c){cnt[statusOf(c)]++;totalReviews+=(c.reviews||0);});
+  S.cards.forEach(function(c){cnt[statusOf(c)]++;if(!c.deleted)totalReviews+=(c.reviews||0);});
   var html='<h2 class="sec">📊 学习总览</h2>'+
     '<div class="panel pad">'+
     '<div class="stat-grid">'+
@@ -999,6 +1012,7 @@ function renderData(){
       '<div><b>'+cnt.grad+"</b><small>已毕业</small></div>"+
       '<div><b>'+totalReviews+"</b><small>累计复习次数</small></div>"+
       '<div><b>'+(log.r+log.n)+"</b><small>今日完成任务</small></div>"+
+      '<div><b>'+cnt.deleted+'</b><small>回收站</small></div>'+
     "</div>"+
     "<h2 class='sec' style='margin-left:0'>📅 任务热力图</h2>"+
     heatmapHTML()+
@@ -1462,7 +1476,8 @@ function submitOne(){
 
 /* ---------- 导出 / 恢复 / 清空 ---------- */
 function exportJson(){
-  var blob=new Blob([JSON.stringify(S,null,2)],{type:"application/json"});
+  var clean=Object.assign({},S,{cards:S.cards.filter(function(c){return !c.deleted;})});
+  var blob=new Blob([JSON.stringify(clean,null,2)],{type:"application/json"});
   var a=document.createElement("a");
   a.href=URL.createObjectURL(blob);
   a.download="ebbinghaus-backup-"+todayStr()+".json";
@@ -1565,7 +1580,23 @@ document.addEventListener("click",function(e){
   else if(act==="save-edit"){saveEdit(b.dataset.id);}
   else if(act==="del-open"){
     var dc=S.cards.find(function(x){return x.id===b.dataset.id;});
-    if(dc&&confirm("删除「"+dc.word+"」？它的复习计划也会一起消失（同步后其他设备也会删掉它）。")){dc.deleted=true;dc.status="pool";dc.due=null;dc.rev=(dc.rev||0)+1;save();renderLib();renderChips();toast("已删除 "+dc.word);}
+    if(dc&&confirm("删除「"+dc.word+"」？它会进回收站（复习暂停、不参与学习），可在词库选「已删除」找回。")){
+      dc.deleted=true;dc.status="pool";dc.due=null;dc.rev=(dc.rev||0)+1;
+      save();renderLib();renderChips();renderRails();toast("已删除 "+dc.word+"（可在回收站恢复）");
+    }
+  }
+  else if(act==="restore-card"){
+    var rc=S.cards.find(function(x){return x.id===b.dataset.id;});
+    if(rc){
+      rc.deleted=false;rc.rev=(rc.rev||0)+1;
+      if(statusOf(rc)==="grad"){rc.due=null;}
+      else if(!rc.due){rc.due=addDaysStr(todayStr(),1);}
+      save();renderLib();renderChips();toast("已恢复 "+rc.word);
+    }
+  }
+  else if(act==="del-forever"){
+    var fc=S.cards.find(function(x){return x.id===b.dataset.id;});
+    if(fc&&confirm("彻底删除「"+fc.word+"」？此操作不可撤销！")){S.cards=S.cards.filter(function(x){return x.id!==fc.id;});save();renderLib();renderChips();toast("已彻底删除 "+fc.word);}
   }
   else if(act==="add-sent-row"){
     for(var sr=2;sr<=3;sr++){
