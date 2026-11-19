@@ -1,14 +1,30 @@
 # -*- coding: utf-8 -*-
-"""edge-tts 朗读桥接：双击运行后，艾宾浩斯单词本网页自动改用 edge-tts 神经网络语音。
+"""edge-tts 朗读桥接：Windows 双击「双击启动桥接.bat」运行（或直接运行本脚本）。
+启动后艾宾浩斯单词本网页自动改用 edge-tts 神经网络语音。
 仅监听 127.0.0.1，不对外网开放。关闭本窗口即停止服务。
-依赖：Python 3.8+ 与 edge-tts（pip install edge-tts）。"""
+依赖：Python 3.8+；edge-tts 缺失时首次运行自动安装。"""
 import asyncio
 import json
 import re
+import subprocess
+import sys
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-import edge_tts
+try:
+    import edge_tts
+except ImportError:
+    print("首次运行：正在自动安装 edge-tts，请稍候…")
+    if subprocess.call([sys.executable, "-m", "pip", "install", "edge-tts"]) != 0:
+        print("默认源失败，改用清华镜像重试…")
+        subprocess.call([sys.executable, "-m", "pip", "install", "edge-tts",
+                         "-i", "https://pypi.tuna.tsinghua.edu.cn/simple"])
+    try:
+        import edge_tts
+    except ImportError:
+        print("edge-tts 安装失败：请检查网络后重试，或手动执行 pip install edge-tts")
+        input("按回车退出…")
+        sys.exit(1)
 
 PORT = 5299
 CACHE = {}
@@ -22,7 +38,11 @@ def synth(text, voice, rate):
         com = edge_tts.Communicate(text, voice, rate=rate)
         chunks = [c["data"] async for c in com.stream() if c["type"] == "audio"]
         return b"".join(chunks)
-    return asyncio.run(run())
+    try:
+        return asyncio.run(run())
+    except Exception:
+        # 服务端偶发 503/403，重试一次通常即恢复
+        return asyncio.run(run())
 
 
 def voices():
@@ -110,6 +130,12 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    try:
+        server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+    except OSError:
+        print("端口 %d 已被占用：桥接可能已经在运行，无需重复启动。" % PORT)
+        input("按回车退出…")
+        sys.exit(0)
     print("edge-tts 朗读服务已启动: http://127.0.0.1:%d" % PORT)
     print("回到网页点朗读即可自动使用 edge-tts；关闭本窗口即停止。")
-    ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
+    server.serve_forever()
