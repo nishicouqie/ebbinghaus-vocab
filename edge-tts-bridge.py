@@ -63,7 +63,7 @@ class Handler(BaseHTTPRequestHandler):
     def _cors(self):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Private-Network", "true")
-        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
 
     def _json(self, obj, code=200):
@@ -80,6 +80,10 @@ class Handler(BaseHTTPRequestHandler):
         self._cors()
         self.send_header("Content-Length", "0")
         self.end_headers()
+
+    def do_POST(self):
+        # 网页端用 POST 调用：PWA 的 sw.js 只缓存 GET，POST 直通不被旧缓存顶替
+        self.do_GET()
 
     def do_GET(self):
         u = urllib.parse.urlparse(self.path)
