@@ -415,6 +415,22 @@
   .rail .feed{justify-content:flex-start;margin-top:0}
   .rail-sec+.rail-sec{border-top:1px solid var(--line-soft);margin-top:14px;padding-top:14px}
   .rail-hint{font-size:12px;color:var(--muted);line-height:1.8}
+  /* 左栏常驻概览+错题+后续七天，压缩行距与柱图高度，保证在固定悬挂区内完整显示、不出现滚动条 */
+  .rail-left .rail-stat{padding:4px 0}
+  .rail-left .rail-stat b{font-size:17px}
+  .rail-left .rail-stat span{font-size:12px}
+  .rail-left .rail-sec+.rail-sec{margin-top:10px;padding-top:10px}
+  .rail-left .future-head{margin-bottom:6px}
+  .rail-left .future-head strong{font-size:13px}
+  .rail-left .future-rail-line{padding:6px 9px;margin-bottom:8px}
+  .rail-left .future-rail-line b{font-size:20px}
+  .rail-left .future-chart.compact{height:112px;padding:10px 4px 0}
+  .rail-left .future-chart.compact::before{top:40px}
+  .rail-left .future-chart.compact::after{top:72px}
+  .rail-left .future-chart.compact .future-val{height:14px;font-size:9.5px}
+  .rail-left .future-chart.compact .future-day{font-size:8.5px;margin-top:3px}
+  .rail-left .future-chart.compact .future-date{font-size:7.5px}
+  .rail-left .future-hint{display:none}
   @media (min-width:1200px){
     .wrap{max-width:1300px;display:grid;grid-template-columns:250px minmax(0,780px) 250px;column-gap:26px;align-items:start}
     /* grid-row 必须显式写死：否则自动放置游标从 col2 回到 col1 时会掉到第 2 行 */
