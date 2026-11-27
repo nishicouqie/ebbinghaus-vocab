@@ -1993,19 +1993,32 @@ function parkNews(){stopTts();nwDone=true;persistSession();toast("好，剩下�
 
 /* ================= 渲染 ================= */
 function render(){
-  renderChips();
-  ["today","lib","add","book","data"].forEach(function(p){
-    $("page-"+p).style.display=(p===CUR)?"":"none";
-  });
-  document.querySelectorAll(".tab").forEach(function(b){b.classList.toggle("on",b.dataset.tab===CUR);});
-  if(CUR==="today")renderToday();
-  if(CUR==="lib")renderLib();
-  if(CUR==="book")renderBook();
-  if(CUR==="data")renderData();
-  renderRails();
-  /* 不再全局跳回顶部：学习翻页由卡片锚定保持位置，切页才回顶（见 tab 处理器） */
-  focusSpell();
-  ttsRefreshButtons();
+  try{
+    renderChips();
+    ["today","lib","add","book","data"].forEach(function(p){
+      $("page-"+p).style.display=(p===CUR)?"":"none";
+    });
+    document.querySelectorAll(".tab").forEach(function(b){b.classList.toggle("on",b.dataset.tab===CUR);});
+    if(CUR==="today")renderToday();
+    if(CUR==="lib")renderLib();
+    if(CUR==="book")renderBook();
+    if(CUR==="data")renderData();
+    renderRails();
+    /* 不再全局跳回顶部：学习翻页由卡片锚定保持位置，切页才回顶（见 tab 处理器） */
+    focusSpell();
+    ttsRefreshButtons();
+  }catch(e){
+    /* 宁可显示错误，也不留整页空白 */
+    console.error("渲染出错",e);
+    var el=$("page-"+CUR);
+    if(el){
+      el.style.display="";
+      el.innerHTML='<div class="panel pad"><div class="done-hero"><div class="big">⚠️</div>'+
+        "<h1>这一页渲染出错了</h1>"+
+        '<p class="hint">错误信息：'+esc(String((e&&e.message)||e))+"<br>你的单词数据没有丢，可以先点「重试」；如果反复出现，把这条信息发给我。</p>"+
+        '<div style="margin-top:12px"><button class="btn" data-act="retry-render">重试</button></div></div></div>';
+    }
+  }
 }
 function focusSpell(){
   var inp=$("spell-input")||$("cloze-input")||$("verb-past");
@@ -2112,7 +2125,8 @@ function sentsHTML(list,meaning,c){
   var isVerb=c&&c.type==="verb";
   return list.map(function(s,i){
     var head=isVerb?(VERB_FORMS[i]||("例 "+(i+1))):(multi?("例 "+(i+1)+(segs[i]?" · "+segs[i]:"")):"例句");
-    var enHTML=isVerb?hlTimeWords(esc(s.en)):esc(s.en);
+    var enHTML=esc(s.en);
+    if(isVerb){var vf=[c.word,c.past||"",c.participle||""][i]||"";enHTML=hlVerbForms(enHTML,vf,i===0);}
     return '<div class="sent-head"><span class="sent-idx">'+esc(head)+"</span>"+(c?ttsBtn(c,"sent-"+i):"")+"</div>"+
       '<div class="sent">'+enHTML+"</div>"+
       (s.cn?'<div class="sent-cn">'+esc(s.cn)+"</div>":"");
@@ -3573,6 +3587,7 @@ document.addEventListener("click",function(e){
     }
   }
   else if(act==="undo"){undoLast();}
+  else if(act==="retry-render"){render();}
   else if(act==="flip"){stopTts();flipped=true;render();}
   else if(act==="grade"){submitGrade(b.dataset.g);}
   else if(act==="skip"){stopTts();var prevTop=cardAnchorTop();pushUndo(snapshotSkip());revSeq.push(revSeq.shift());persistSession();resetCardView();render();restoreCardAnchor(prevTop);}
