@@ -540,7 +540,7 @@
         </div>
         <p class="hint" style="margin-top:8px">变形卡写空括号 <code class="kbd">become()()</code> 也行——AI 会自动补上 became / become。导入后类型栏是一个字：<code class="kbd">认</code> <code class="kbd">默</code> <code class="kbd">填</code> <code class="kbd">变</code></p>
       </div>
-      <p class="hint">一行一张卡，用竖线 <code class="kbd">|</code> 分隔。字段依次是：<br><b>单词 | 类型 | 音标 | 释义 | 例句 | 例句翻译 | 笔记</b>（后三栏可省略）<br>类型只填一个字：<code class="kbd">认</code>、<code class="kbd">默</code>、<code class="kbd">填</code> 或 <code class="kbd">变</code>；一词多义配多个例句时，例句栏和翻译栏各自用 <code class="kbd">@@</code> 隔开，一一对应（最多 4 组）<br>✏️ <b>填空卡</b>：单词栏带一对小括号就是填空卡，括号里是答案，正面自动挖空——<code class="kbd">a solution (to)</code> → 正面显示 a solution 加一条实线空，输入空格处的词回车核对（释义栏写搭配原因，笔记栏写 ✗ 错误选项）<br>🕰️ <b>变形卡</b>：单词栏带两对括号就是变形卡，括号里依次是过去式、过去分词——<code class="kbd">become(became)(become)</code> → 正面给原形，填两个空回车核对，反面三种时态各一句例句，时间词高亮</p>
+      <p class="hint">一行一张卡，用竖线 <code class="kbd">|</code> 分隔。字段依次是：<br><b>单词 | 类型 | 音标 | 释义 | 例句 | 例句翻译 | 笔记</b>（后三栏可省略）<br>类型只填一个字：<code class="kbd">认</code>、<code class="kbd">默</code>、<code class="kbd">填</code> 或 <code class="kbd">变</code>；一词多义配多个例句时，例句栏和翻译栏各自用 <code class="kbd">@@</code> 隔开，一一对应（最多 4 组）<br>✏️ <b>填空卡</b>：单词栏带一对小括号就是填空卡，括号里是答案，正面自动挖空——<code class="kbd">a solution (to)</code> → 正面显示 a solution 加一条实线空，输入空格处的词回车核对（释义栏写搭配原因，笔记栏写 ✗ 错误选项）<br>🕰️ <b>变形卡</b>：单词栏带两对括号就是变形卡，括号里依次是过去式、过去分词——<code class="kbd">become(became)(become)</code> → 正面给原形，填两个空回车核对，反面三种时态各一句例句，句中对应变形词高亮</p>
       <pre style="background:var(--surface-3);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:10px 0;overflow:auto;font-size:12px;line-height:1.9;color:var(--muted)">abandon|默|/əˈbændən/|v. 放弃；抛弃|They abandoned the plan at the last minute.@@The crew was forced to abandon the sinking ship.|他们在最后一刻放弃了计划。@@船员们被迫弃船逃生。
 adapt|认||v. 适应；改编|She adapted quickly to campus life.|她很快适应了校园生活。
 a solution (to)|填||solution to sth 固定搭配，to 指向问题对应的「钥匙」|They offered a solution to the problem.|他们提出了解决这个问题的方案。|✗ for（表目的）✗ of（表所属）
@@ -568,7 +568,7 @@ become(became)(become)|变|/bɪˈkʌm/|v. 变成；成为|He exercises every mor
         <input id="f-past" class="inp" placeholder="如：became（多种写法用 / 隔开，如 burned/burnt）">
         <label class="fld">过去分词 *</label>
         <input id="f-participle" class="inp" placeholder="如：become">
-        <p class="hint" style="margin-top:6px">例句按顺序对应：例句 1＝原形、例句 2＝过去式、例句 3＝过去分词，每句带明显时间词（every day / yesterday / since…）</p>
+        <p class="hint" style="margin-top:6px">例句按顺序对应：例句 1＝原形、例句 2＝过去式、例句 3＝过去分词；反面会高亮句中对应的变形词（例句仍建议带 every day / yesterday / since… 这类时间词）</p>
       </div>
       <label class="fld">音标</label>
       <input id="f-pho" class="inp" placeholder="/əˈbændən/（选填）">
@@ -768,7 +768,7 @@ become(became)(become)|变|/bɪˈkʌm/|v. 变成；成为|He exercises every mor
   - 第 1 句用原形（一般现在时／不定式／情态动词后均可），带习惯性时间词：every day、often、usually、on Mondays、every morning
   - 第 2 句用过去式，带明确的过去时间词：yesterday、last week、two days ago、in 2010
   - 第 3 句用过去分词（完成时 have/has/had＋过去分词），带完成时时间词：already、yet、since、for、just、ever、never、by now
-  - **每句必须含一个上面这类明显的时间词**，让学生一眼看出「什么时候用这个时态」；时间词要自然贴合句意，不要硬塞
+  - **每句必须使用该行对应的变形（原形／过去式／过去分词），并带一个明显的时间词**，帮助学生判断时态；软件会在例句中高亮该变形词本身，时间词不再高亮
 - 每句 8～18 个词，难度贴近高中英语阅读，自然地道，展示该义项最典型的用法，
   多句之间避免句式雷同
 
@@ -1171,17 +1171,25 @@ function verbFormsHTML(c){
     return '<span class="vf-pill"><i>'+l+"</i>"+esc(forms[i])+"</span>";
   }).join("")+"</div>";
 }
-/* 时间词高亮：只用于变形卡例句——让「什么时候用这个时态」一眼可见 */
-var TIME_RE=new RegExp("\\b(?:"+
-  "last\\s+[\\w-]+|next\\s+[\\w-]+|every\\s+[\\w-]+|each\\s+[\\w-]+|"+
-  "(?:[\\w-]+\\s+){1,2}ago|long\\s+ago|"+
-  "since\\s+(?:last|next|this)\\s+[\\w-]+|since\\s+[\\w-]+|for\\s+(?:[\\w-]+\\s+){0,2}(?:years?|months?|weeks?|days?|hours?|minutes?|seconds?|ages|long)|"+
-  "by\\s+the\\s+time|by\\s+then|by\\s+next\\s+[\\w-]+|by\\s+\\d{4}|"+
-  "in\\s+\\d{4}|on\\s+\\w+day|at\\s+that\\s+moment|"+
-  "the\\s+day\\s+before\\s+yesterday|this\\s+morning|these\\s+days|so\\s+far|up\\s+to\\s+now|"+
-  "yesterday|tomorrow|tonight|already|yet|just|ever|never|recently|lately|now|today"+
-  ")\\b","gi");
-function hlTimeWords(escaped){return escaped.replace(TIME_RE,function(m){return '<b class="tw">'+m+"</b>";});}
+/* 变形词高亮：只用于变形卡例句——把该行对应时态的词形标出来；原形行额外覆盖三单/进行时等常见屈折 */
+function hlVerbForms(escaped,formsStr,base){
+  var alts=String(formsStr||"").split(/[\/／]/).map(function(s){return s.trim();}).filter(Boolean);
+  var list=alts.slice();
+  function infl(f,suf){var parts=f.split(/\s+/);parts[0]+=suf;return parts.join(" ");}
+  var IRR3={be:["is","are","am"],have:["has"],do:["does"]};
+  if(base)alts.forEach(function(f){
+    list.push(infl(f,"ing"));
+    if(/[^aeiou]y$/i.test(f))list.push(infl(f.slice(0,-1),"ies"));
+    else if(/(?:s|x|z|ch|sh|o)$/i.test(f))list.push(infl(f,"es"));
+    else list.push(infl(f,"s"));
+    if(/e$/i.test(f))list.push(infl(f.slice(0,-1),"ing"));
+    if(IRR3[f.toLowerCase()])list.push.apply(list,IRR3[f.toLowerCase()]);
+  });
+  list=list.filter(function(v,i){return v&&list.indexOf(v)===i;}).sort(function(a,b){return b.length-a.length;});
+  if(!list.length)return escaped;
+  var pat=list.map(function(f){return f.replace(/[.*+?^${}()|[\]\\]/g,"\\$&").replace(/\s+/g,"\\s+");}).join("|");
+  return escaped.replace(new RegExp("\\b(?:"+pat+")\\b","gi"),function(m){return '<b class="tw">'+m+"</b>";});
+}
 function verbMatch(guess,ans){
   var g=String(guess||"").trim().toLowerCase();
   return String(ans||"").split(/[\/／]/).some(function(a){return a.trim().toLowerCase()===g;});
@@ -1193,7 +1201,7 @@ function verbBackBody(c){
   (c.sents||[]).forEach(function(s,i){
     var label=VERB_FORMS[i]||("例 "+(i+1));
     h+='<div class="verb-back-row"><div class="verb-back-head"><span class="verb-tag">'+label+'</span><span class="vf-word">'+esc(forms[i]||"")+"</span>"+ttsBtn(c,"sent-"+i)+"</div>"+
-      '<div class="sent">'+hlTimeWords(esc(s.en))+"</div>"+
+      '<div class="sent">'+hlVerbForms(esc(s.en),forms[i],i===0)+"</div>"+
       (s.cn?'<div class="sent-cn">'+esc(s.cn)+"</div>":"")+"</div>";
   });
   if(c.note)h+='<span class="note-tag">📌 '+esc(c.note)+"</span>";
@@ -2188,7 +2196,7 @@ function clozeFull(c){
   return h;
 }
 
-/* ---- 变形卡：给原形 → 填过去式+过去分词 → 核对 → 三时态各一句带时间词的例句（v4.9） ---- */
+/* ---- 变形卡：给原形 → 填过去式+过去分词 → 核对 → 三时态各一句、对应变形词高亮的例句（v4.9） ---- */
 function verbFull(c){
   if(curRevId!==c.id){curRevId=c.id;flipped=false;verbState="typing";verbGuess={past:"",part:""};}
   var od=diffDays(c.due,todayStr());
@@ -2565,7 +2573,7 @@ function renderRails(){
       "😵 <b>不认识</b>：倒退一级。<br>"+
       "⌨️ 默写卡敲对自动过关；敲错自选「差一点/真不会」。<br>"+
       "✏️ 填空卡同默写卡：输入空格处的词回车核对，填对→下一张，填错→两键评分。<br>"+
-      "🕰️ 变形卡：给原形填过去式+过去分词，Tab 跳空、回车核对；反面三时态例句时间词高亮。<br>"+
+      "🕰️ 变形卡：给原形填过去式+过去分词，Tab 跳空、回车核对；反面三时态例句对应变形词高亮。<br>"+
       "🔊 卡片右上角喇叭＝朗读，正反面都能点；数据页可开启 edge-tts 桥接。<br>"+
       "↩ <b>上一张</b>：点错评分/学新词/跳过，按 Backspace 或按钮撤销回退，可连续撤销。<br>"+
       "💤 偷懒没背不扣分，全部顺延堆积。</p></div>";
@@ -2822,7 +2830,7 @@ function editOpen(id){
     '<div id="edit-verb-fields" style="display:'+(c.type==="verb"?"":"none")+'">'+
     '<label class="fld">过去式 *</label><input id="e-past" class="inp" value="'+esc(c.past||"")+'" placeholder="如：became（多种写法用 / 隔开，如 burned/burnt）">'+
     '<label class="fld">过去分词 *</label><input id="e-participle" class="inp" value="'+esc(c.participle||"")+'" placeholder="如：become">'+
-    '<p class="hint" style="margin-top:6px">例句按顺序对应：例句 1＝原形、例句 2＝过去式、例句 3＝过去分词，每句带明显时间词（every day / yesterday / since…）</p>'+
+    '<p class="hint" style="margin-top:6px">例句按顺序对应：例句 1＝原形、例句 2＝过去式、例句 3＝过去分词；反面会高亮句中对应的变形词（例句仍建议带 every day / yesterday / since… 这类时间词）</p>'+
     "</div>"+
     '<label class="fld">音标</label><input id="e-pho" class="inp" value="'+esc(c.phonetic)+'">'+
     '<label class="fld" id="e-mean-label">'+(c.type==="cloze"?"搭配原因 *（为什么填这个）":"释义 *")+'</label><input id="e-mean" class="inp" value="'+esc(c.meaning)+'">'+
@@ -2896,7 +2904,7 @@ function parseBulkLines(txt){
     var warn=null;
     if(cns.length&&!ens.length)warn="有翻译但没有例句";
     else if(cns.length&&cns.length!==ens.length)warn="例句 "+ens.length+" 句但翻译 "+cns.length+" 条——检查 @@ 是否一一对应";
-    if(type==="verb"&&ens.length!==3)warn=(warn?warn+"；":"")+"变形卡建议 3 句例句：原形/过去式/过去分词各一句（各带时间词），现在 "+ens.length+" 句";
+    if(type==="verb"&&ens.length!==3)warn=(warn?warn+"；":"")+"变形卡建议 3 句例句：原形/过去式/过去分词各一句（各用对应时态、句中含该变形词），现在 "+ens.length+" 句";
     return {card:{word:vb?vb.base:(cz?cz.stem:f[0]),answer:cz?cz.answer:"",type:type,past:past,participle:part,phonetic:f[2]||"",meaning:meaning,
                   sents:ens.map(function(en,j){return {en:en,cn:cns[j]||""};}),
                   note:f[6]||""},n:i+1,warn:warn};
